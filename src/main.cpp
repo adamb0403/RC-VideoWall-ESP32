@@ -1,12 +1,16 @@
 #include <Arduino.h>
 #include <RGBmatrixPanel.h> // Required AdaFruit Libraries
-#include <Adafruit_GFX.h>
+#include <Wire.h>
 
 #include "FS.h"
 #include "SPI.h" // SD libraries
 #include "SD.h"
 #include <EEPROM.h>
 #include "BluetoothSerial.h"
+
+void readBluetooth(void);
+void serialFlush(void);
+byte hexCheck(byte x);
 
 #define CLK  15   // USE THIS ON ADAFRUIT METRO M0, etc.
 #define OE   33
@@ -90,13 +94,13 @@ void loop() {
     }
     float time2 = micros();
     float fps = (IMAGE_COUNT/(time2-time1))*1000000.0;
-    //Serial.println(fps);
+    Serial.println(fps);
   }
 
   readBluetooth();
 }
 
-void readBluetooth(fs::FS &fs) {
+void readBluetooth() {
   matrix.fillScreen(matrix.Color333(0, 0, 0));
   matrix.setCursor(0, 0);    // start at top left, with one pixel of spacing
   matrix.setTextSize(1);     // size 1 == 8 pixels high
@@ -154,7 +158,7 @@ void readBluetooth(fs::FS &fs) {
 
 void serialFlush(){
   while(SerialBT.available() > 0) {
-    char h = SerialBT.read();
+    SerialBT.read();
   }
 }
 
