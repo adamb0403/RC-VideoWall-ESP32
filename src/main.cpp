@@ -109,7 +109,7 @@ void readBluetooth() {
   matrix.println("Recieving Data...");
   matrix.swapBuffers(false);
   
-  int bytesize = 32;
+  int bytesize = 64;
   int chunksize = 3072/bytesize;
   byte btbuffer[bytesize];
 
