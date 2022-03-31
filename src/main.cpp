@@ -20,21 +20,22 @@ byte hexCheck(byte x);
 #define C   17
 #define D   4
 
-RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, true);
+RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, false);
 
 BluetoothSerial SerialBT;
 
-//byte IMAGE_COUNT = EEPROM.read(0);
-//byte SLIDE_TIME = EEPROM.read(1);
-
-byte IMAGE_COUNT = 10;
-byte SLIDE_TIME = 1;
+byte IMAGE_COUNT;
+byte SLIDE_TIME;
 
 void setup() {
   Serial.begin(115200); // Open serial communications and wait for port to open
   while (!Serial) { // wait for serial port to connect
     ; 
   }
+
+  EEPROM.begin(2);
+  IMAGE_COUNT = EEPROM.read(0);
+  SLIDE_TIME = EEPROM.read(1);
 
   Serial.print("Initializing SD card...");
   
@@ -53,22 +54,26 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  fs::FS &fs = SD;
+  File image;
+  String fname;
+  byte buffers[192];
+  byte counter;
+  IMAGE_COUNT = 150;
   while(SerialBT.available() < 1) {
     float time1 = micros();
-    for (int x=1; x<=IMAGE_COUNT; x++) { // Iterate for all images on sd card
+    for (int x=150; x>1; x--) { // Iterate for all images on sd card
       if (SerialBT.available() > 0) {
         break;
       }
-      fs::FS &fs = SD;
-      String fname = String(x) + ".txt"; // Form image file name
-      File image = fs.open(fname, FILE_READ); //open image file for reading
+      fname = "/" + String(x) + ".txt"; // Form image file name
+      image = fs.open(fname, FILE_READ); //open image file for reading
   
       for(byte rows=0; rows<16; rows++) {
         if (SerialBT.available() > 0) {
           break;
         }
-        byte buffers[192];
-        byte counter = 0;
+        counter = 0;
         image.read(buffers, sizeof(buffers));
   
         for(byte irow=0; irow<2; irow++) {
@@ -82,15 +87,15 @@ void loop() {
         }
       }
     
-      matrix.swapBuffers(false);
+      // matrix.swapBuffers(false);
       image.close();
 
-      for(int d=0; d<1000; d++) {
-        if (SerialBT.available() > 0) {
-          break;
-        }
-        delay(SLIDE_TIME); // how long each image displays for
-      }
+      // for(int d=0; d<1000; d++) {
+      //   if (SerialBT.available() > 0) {
+      //     break;
+      //   }
+      //   delay(SLIDE_TIME); // how long each image displays for
+      // }
     }
     float time2 = micros();
     float fps = (IMAGE_COUNT/(time2-time1))*1000000.0;
@@ -109,7 +114,7 @@ void readBluetooth() {
   matrix.println("Recieving Data...");
   matrix.swapBuffers(false);
   
-  int bytesize = 64;
+  int bytesize = 128;
   int chunksize = 3072/bytesize;
   byte btbuffer[bytesize];
 
@@ -122,7 +127,7 @@ void readBluetooth() {
 
   for(int count=1; count<=IMAGE_COUNT; count++) {
     fs::FS &fs = SD;
-    String filename = String(count) + ".txt"; // Form image file name
+    String filename = "/" + String(count) + ".txt"; // Form image file name
     File saveBluetooth = fs.open(filename, FILE_WRITE); //open image file for writing
     //delay(50);
     
@@ -135,9 +140,9 @@ void readBluetooth() {
       }
       saveBluetooth.write(btbuffer, bytesize);
 
-//      if(chunks+1 % (512/bytesize) == 0) { // When 512 bytes are written to the file, copy the data physically to the SD card using flush()
-//        saveBluetooth.flush();
-//      }
+     if(chunks+1 % (512/bytesize) == 0) { // When 512 bytes are written to the file, copy the data physically to the SD card using flush()
+       saveBluetooth.flush();
+     }
       SerialBT.write(1);
     }
     saveBluetooth.close();
