@@ -59,20 +59,14 @@ void loop() {
   String fname;
   byte buffers[192];
   byte counter;
-  IMAGE_COUNT = 150;
+
   while(SerialBT.available() < 1) {
     float time1 = micros();
-    for (int x=150; x>1; x--) { // Iterate for all images on sd card
-      if (SerialBT.available() > 0) {
-        break;
-      }
-      fname = "/" + String(x) + ".txt"; // Form image file name
+    for (int x=150; x>0; x--) { // Iterate for all images on sd card
+      fname = "/" + String(x); // Form image file name
       image = fs.open(fname, FILE_READ); //open image file for reading
   
       for(byte rows=0; rows<16; rows++) {
-        if (SerialBT.available() > 0) {
-          break;
-        }
         counter = 0;
         image.read(buffers, sizeof(buffers));
   
@@ -81,7 +75,7 @@ void loop() {
             if (SerialBT.available() > 0) {
               break;
             }
-            matrix.drawPixel(irow+(rows*2), column, matrix.Color444(hexCheck(buffers[counter]), hexCheck(buffers[counter+1]), hexCheck(buffers[counter+2]))); // Draw the RGB pixel
+            matrix.drawPixel(irow+(rows*2), column, matrix.Color888(buffers[counter], buffers[counter+1], buffers[counter+2])); // Draw the RGB pixel
             counter+=3;
           }
         }
@@ -90,12 +84,12 @@ void loop() {
       // matrix.swapBuffers(false);
       image.close();
 
-      // for(int d=0; d<1000; d++) {
-      //   if (SerialBT.available() > 0) {
-      //     break;
-      //   }
-      //   delay(SLIDE_TIME); // how long each image displays for
-      // }
+      for(int d=0; d<10; d++) {
+        if (SerialBT.available() > 0) {
+          break;
+        }
+        delay(SLIDE_TIME/100); // how long each image displays for
+      }
     }
     float time2 = micros();
     float fps = (IMAGE_COUNT/(time2-time1))*1000000.0;
@@ -127,9 +121,8 @@ void readBluetooth() {
 
   for(int count=1; count<=IMAGE_COUNT; count++) {
     fs::FS &fs = SD;
-    String filename = "/" + String(count) + ".txt"; // Form image file name
+    String filename = "/" + String(count); // Form image file name
     File saveBluetooth = fs.open(filename, FILE_WRITE); //open image file for writing
-    //delay(50);
     
     for(byte chunks=0; chunks<chunksize; chunks++) {
       for(byte single_byte=0; single_byte<bytesize; single_byte++) {
@@ -148,15 +141,10 @@ void readBluetooth() {
     saveBluetooth.close();
     Serial.println("Image done");
     
-    matrix.fillScreen(matrix.Color333(0, 0, 0));
-    matrix.setCursor(0, 0);    // start at top left, with one pixel of spacing
-    matrix.setTextSize(1);     // size 1 == 8 pixels high
-    matrix.setTextWrap(true); 
-    matrix.setTextColor(matrix.Color333(7,7,7));
-    matrix.println("Recieving Data.");
+    matrix.setCursor(0, 24);    // start at top left, with one pixel of spacing
     int percent = (count*100)/IMAGE_COUNT;
     matrix.println((String) percent + "%");
-    matrix.swapBuffers(false);
+    // matrix.swapBuffers(false);
   }
   serialFlush();
 }
