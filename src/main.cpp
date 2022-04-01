@@ -10,7 +10,6 @@
 
 void readBluetooth(void);
 void serialFlush(void);
-byte hexCheck(byte x);
 
 #define CLK  15   // USE THIS ON ADAFRUIT METRO M0, etc.
 #define OE   33
@@ -62,10 +61,16 @@ void loop() {
 
   while(SerialBT.available() < 1) {
     float time1 = micros();
-    for (int x=150; x>0; x--) { // Iterate for all images on sd card
+    for (byte x=1; x<=IMAGE_COUNT; x++) { // Iterate for all images on sd card
       fname = "/" + String(x); // Form image file name
       image = fs.open(fname, FILE_READ); //open image file for reading
-  
+
+      // for (byte i=0; i<32; i++) {
+      //   for (byte j=0; j<32; j++) {
+      //     matrix.drawPixel(i, j, matrix.Color888(image.read(), image.read(), image.read())); // Draw the RGB pixel
+      //   }
+      // }
+      
       for(byte rows=0; rows<16; rows++) {
         counter = 0;
         image.read(buffers, sizeof(buffers));
@@ -85,10 +90,10 @@ void loop() {
       image.close();
 
       for(int d=0; d<10; d++) {
-        if (SerialBT.available() > 0) {
+        if (SerialBT.available() > 1) {
           break;
         }
-        delay(SLIDE_TIME/100); // how long each image displays for
+        delay(SLIDE_TIME*100); // how long each image displays for
       }
     }
     float time2 = micros();
@@ -100,6 +105,7 @@ void loop() {
 }
 
 void readBluetooth() {
+  fs::FS &fs = SD;
   matrix.fillScreen(matrix.Color333(0, 0, 0));
   matrix.setCursor(0, 0);    // start at top left, with one pixel of spacing
   matrix.setTextSize(1);     // size 1 == 8 pixels high
@@ -118,9 +124,14 @@ void readBluetooth() {
   EEPROM.write(1, SLIDE_TIME);
   EEPROM.commit();
   SerialBT.write(1);
+  
+  for (int x=1; x<=IMAGE_COUNT; x++) {
+    if (fs.exists(String(x))) {
+      fs.remove(String(x));
+    }
+  }
 
   for(int count=1; count<=IMAGE_COUNT; count++) {
-    fs::FS &fs = SD;
     String filename = "/" + String(count); // Form image file name
     File saveBluetooth = fs.open(filename, FILE_WRITE); //open image file for writing
     
@@ -141,7 +152,12 @@ void readBluetooth() {
     saveBluetooth.close();
     Serial.println("Image done");
     
-    matrix.setCursor(0, 24);    // start at top left, with one pixel of spacing
+    matrix.fillScreen(matrix.Color333(0, 0, 0));
+    matrix.setCursor(0, 0);    // start at top left, with one pixel of spacing
+    matrix.setTextSize(1);     // size 1 == 8 pixels high
+    matrix.setTextWrap(true); 
+    matrix.setTextColor(matrix.Color333(7,7,7));
+    matrix.println("Recieving Data.");
     int percent = (count*100)/IMAGE_COUNT;
     matrix.println((String) percent + "%");
     // matrix.swapBuffers(false);
@@ -153,14 +169,4 @@ void serialFlush(){
   while(SerialBT.available() > 0) {
     SerialBT.read();
   }
-}
-
-byte hexCheck(byte x) {
-  if (x >= 'A') { // If value is a hex letter, convert to corresponding number
-      x = x - 55;
-  }
-  else {
-      x = x - 48;
-  }
-  return(x);
 }
