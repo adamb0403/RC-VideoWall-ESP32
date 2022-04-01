@@ -19,12 +19,16 @@ void serialFlush(void);
 #define C   17
 #define D   4
 
-RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, false);
+uint32_t prevTime = 0;
+
+RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, true);
 
 BluetoothSerial SerialBT;
 
 byte IMAGE_COUNT;
 byte SLIDE_TIME;
+byte FPS;
+byte DECIDER;
 
 void setup() {
   Serial.begin(115200); // Open serial communications and wait for port to open
@@ -32,9 +36,11 @@ void setup() {
     ; 
   }
 
-  EEPROM.begin(2);
+  EEPROM.begin(4);
   IMAGE_COUNT = EEPROM.read(0);
   SLIDE_TIME = EEPROM.read(1);
+  FPS = EEPROM.read(2);
+  DECIDER = EEPROM.read(3);
 
   Serial.print("Initializing SD card...");
   
@@ -57,45 +63,50 @@ void loop() {
   File image;
   String fname;
   byte buffers[192];
+  int internalRows = ((sizeof(buffers)/3)/32);
+  int mainRows = (32/internalRows);
   byte counter;
 
   while(SerialBT.available() < 1) {
     float time1 = micros();
     for (byte x=1; x<=IMAGE_COUNT; x++) { // Iterate for all images on sd card
       fname = "/" + String(x); // Form image file name
+      unsigned long t1 = millis();
       image = fs.open(fname, FILE_READ); //open image file for reading
+      unsigned long t2 = millis();
+      unsigned long time = (t2-t1);
 
-      // for (byte i=0; i<32; i++) {
-      //   for (byte j=0; j<32; j++) {
-      //     matrix.drawPixel(i, j, matrix.Color888(image.read(), image.read(), image.read())); // Draw the RGB pixel
-      //   }
-      // }
+      if (DECIDER == 1) {
+        uint32_t t;
+        while(((t = millis()) - prevTime) < (1000 / FPS));
+        prevTime = t;
+      }
       
-      for(byte rows=0; rows<16; rows++) {
+      for(byte rows=0; rows<mainRows; rows++) {
         counter = 0;
         image.read(buffers, sizeof(buffers));
   
-        for(byte irow=0; irow<2; irow++) {
+        for(byte irow=0; irow<internalRows; irow++) {
           for(byte column=0; column<32; column++) {
-            if (SerialBT.available() > 0) {
-              break;
-            }
-            matrix.drawPixel(irow+(rows*2), column, matrix.Color888(buffers[counter], buffers[counter+1], buffers[counter+2])); // Draw the RGB pixel
+            matrix.drawPixel(irow+(rows*internalRows), column, matrix.Color888(buffers[counter], buffers[counter+1], buffers[counter+2])); // Draw the RGB pixel
             counter+=3;
           }
         }
       }
-    
-      // matrix.swapBuffers(false);
+  
+      matrix.swapBuffers(false);
+
       image.close();
 
-      for(int d=0; d<10; d++) {
-        if (SerialBT.available() > 1) {
-          break;
-        }
-        delay(SLIDE_TIME*100); // how long each image displays for
+      if (DECIDER == 2) {
+        delay(SLIDE_TIME*1000);
       }
     }
+
+    if (SerialBT.available() > 0) {
+      break;
+    }
+
     float time2 = micros();
     float fps = (IMAGE_COUNT/(time2-time1))*1000000.0;
     Serial.println(fps);
@@ -119,9 +130,24 @@ void readBluetooth() {
   byte btbuffer[bytesize];
 
   IMAGE_COUNT = SerialBT.read();
-  SLIDE_TIME = SerialBT.read();
+  DECIDER = SerialBT.read();
+
   EEPROM.write(0, IMAGE_COUNT);
-  EEPROM.write(1, SLIDE_TIME);
+  EEPROM.write(3, DECIDER);
+
+  switch (DECIDER)
+  {
+  case 1:
+    FPS = SerialBT.read();
+    EEPROM.write(2, FPS);
+    break;
+  
+  case 2:
+    SLIDE_TIME = SerialBT.read();
+    EEPROM.write(1, SLIDE_TIME);
+    break;
+  }
+
   EEPROM.commit();
   SerialBT.write(1);
   
@@ -155,12 +181,12 @@ void readBluetooth() {
     matrix.fillScreen(matrix.Color333(0, 0, 0));
     matrix.setCursor(0, 0);    // start at top left, with one pixel of spacing
     matrix.setTextSize(1);     // size 1 == 8 pixels high
-    matrix.setTextWrap(true); 
+    matrix.setTextWrap(true);
     matrix.setTextColor(matrix.Color333(7,7,7));
     matrix.println("Recieving Data.");
     int percent = (count*100)/IMAGE_COUNT;
     matrix.println((String) percent + "%");
-    // matrix.swapBuffers(false);
+    matrix.swapBuffers(false);
   }
   serialFlush();
 }
