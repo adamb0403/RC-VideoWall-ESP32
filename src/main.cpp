@@ -70,6 +70,9 @@ void loop() {
   while(SerialBT.available() < 1) {
     float time1 = micros();
     for (byte x=1; x<=IMAGE_COUNT; x++) { // Iterate for all images on sd card
+      if (SerialBT.available() > 0) {
+        break;
+      }
       fname = "/" + String(x); // Form image file name
       unsigned long t1 = millis();
       image = fs.open(fname, FILE_READ); //open image file for reading
@@ -101,10 +104,6 @@ void loop() {
       if (DECIDER == 2) {
         delay(SLIDE_TIME*1000);
       }
-    }
-
-    if (SerialBT.available() > 0) {
-      break;
     }
 
     float time2 = micros();
