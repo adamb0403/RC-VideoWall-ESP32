@@ -8,6 +8,7 @@
 #include <EEPROM.h> // EEPROM library
 #include "BluetoothSerial.h" // ESP32 Bluetooth classic library
 
+void outputDisplay(byte change, byte i);
 void readBluetooth(void); // Declare function to process data receieved via Bluetooth
 void serialFlush(void); // Declare function to clear bluetooth buffer
 
@@ -58,59 +59,169 @@ void setup() {
 }
 
 void loop() {
+  // fs::FS &fs = SD; // Set SD card as a filesystem object via FS fucntion within the fs class/library
+  // File image;
+  // String fname;
+  // byte buffers[192]; // Initialise local image buffer
+  // int internalRows = ((sizeof(buffers)/3)/32); // Define how many rows can be set per buffer
+  // int mainRows = (32/internalRows); // Define how many buffers will set all rows
+  // byte counter;
+
+  while(SerialBT.available() < 1) { // Repeat loop while there is nothing in bluetooth buffer
+    float time1 = micros();
+
+    byte square = sqrt(IMAGE_COUNT) + 1;
+    byte diff = IMAGE_COUNT - ((square-1)*(square-1));
+
+    for (byte i=0; i<square; i++) {
+
+      if (i = (square-1)) {
+        outputDisplay(diff, i);
+      }
+
+      else {
+        outputDisplay(square, i);
+      }
+
+      // for (byte j=0; j<square; j++) {
+
+      //   if (SerialBT.available() > 0) { // Check for data received in bluetooth buffer
+      //     break;
+      //   }
+
+      //   fname = "/" + String(i) + "/" + String(j); // Form image file name
+
+      //   unsigned long t1 = millis();
+      //   image = fs.open(fname, FILE_READ); // Open image file for reading
+      //   unsigned long t2 = millis();
+      //   unsigned long time = (t2-t1);
+      //   Serial.println(time);
+
+      //   if (DECIDER == 1) { // If GIF is being shown, use FPS to control speed of images
+      //   // Hold until time passed since last loop is larger than the minimum time per 1 frame, defined from FPS  
+      //   unsigned long t;
+      //   while(((t = millis()) - prevTime) < (1000 / FPS));
+      //   prevTime = t;
+      //   }
+        
+      //   for(byte rows=0; rows<mainRows; rows++) { // Iterate for mainRows variable
+      //     counter = 0;
+      //     image.read(buffers, sizeof(buffers)); // Read defined number of bytes from SD card into a buffer
+    
+      //     for(byte irow=0; irow<internalRows; irow++) { // Iterate for internalRows variable
+      //       for(byte column=0; column<32; column++) {
+      //         // drawPixel in 8bit colour to output to display buffer
+      //         matrix.drawPixel(irow+(rows*internalRows), column, matrix.Color888(buffers[counter], buffers[counter+1], buffers[counter+2]));
+      //         counter+=3; // Increment counter to next set of bytes for next pixel
+      //       }
+      //     }
+      //   }
+    
+      //   matrix.swapBuffers(false); // Output the buffer to the display LEDs 
+      //   image.close();
+
+      //   if (DECIDER == 2) { // If slide show images are being shown, use SLIDE_TIME to control speed of images
+      //     delay(SLIDE_TIME*1000);
+      //   }
+      // }
+    }
+
+    // for (byte x=1; x<=IMAGE_COUNT; x++) { // Iterate for all images on sd card
+
+    //   if (SerialBT.available() > 0) { // Check for data received in bluetooth buffer
+    //     break;
+    //   }
+
+    //   fname = "/" + String(x); // Form image file name
+    //   image = fs.open(fname, FILE_READ); // Open image file for reading
+
+    //   if (DECIDER == 1) { // If GIF is being shown, use FPS to control speed of images
+    //     // Hold until time passed since last loop is larger than the minimum time per 1 frame, defined from FPS  
+    //     unsigned long t;
+    //     while(((t = millis()) - prevTime) < (1000 / FPS));
+    //     prevTime = t;
+    //   }
+      
+    //   for(byte rows=0; rows<mainRows; rows++) { // Iterate for mainRows variable
+    //     counter = 0;
+    //     image.read(buffers, sizeof(buffers)); // Read defined number of bytes from SD card into a buffer
+  
+    //     for(byte irow=0; irow<internalRows; irow++) { // Iterate for internalRows variable
+    //       for(byte column=0; column<32; column++) {
+    //         // drawPixel in 8bit colour to output to display buffer
+    //         matrix.drawPixel(irow+(rows*internalRows), column, matrix.Color888(buffers[counter], buffers[counter+1], buffers[counter+2]));
+    //         counter+=3; // Increment counter to next set of bytes for next pixel
+    //       }
+    //     }
+    //   }
+  
+    //   matrix.swapBuffers(false); // Output the buffer to the display LEDs 
+    //   image.close();
+
+    //   if (DECIDER == 2) { // If slide show images are being shown, use SLIDE_TIME to control speed of images
+    //     delay(SLIDE_TIME*1000);
+    //   }
+    // }
+
+    float time2 = micros();
+    float fps = (IMAGE_COUNT/(time2-time1))*1000000.0;
+    Serial.println(fps);
+  }
+  
+
+  readBluetooth(); // If Serail1 buffer has data, call function to read BT data
+}
+
+void outputDisplay(byte change, byte i) {
   fs::FS &fs = SD; // Set SD card as a filesystem object via FS fucntion within the fs class/library
   File image;
   String fname;
   byte buffers[192]; // Initialise local image buffer
   int internalRows = ((sizeof(buffers)/3)/32); // Define how many rows can be set per buffer
   int mainRows = (32/internalRows); // Define how many buffers will set all rows
-  byte counter;
+  byte counter = 0;
 
-  while(SerialBT.available() < 1) { // Repeat loop while there is nothing in bluetooth buffer
-    float time1 = micros();
-    for (byte x=1; x<=IMAGE_COUNT; x++) { // Iterate for all images on sd card
+  for (byte j=0; j<change; j++) {
 
-      if (SerialBT.available() > 0) { // Check for data received in bluetooth buffer
-        break;
-      }
+    if (SerialBT.available() > 0) { // Check for data received in bluetooth buffer
+      break;
+    }
 
-      fname = "/" + String(x); // Form image file name
-      image = fs.open(fname, FILE_READ); // Open image file for reading
+    fname = "/" + String(i) + "/" + String(j); // Form image file name
 
-      if (DECIDER == 1) { // If GIF is being shown, use FPS to control speed of images
-        // Hold until time passed since last loop is larger than the minimum time per 1 frame, defined from FPS  
-        unsigned long t;
-        while(((t = millis()) - prevTime) < (1000 / FPS));
-        prevTime = t;
-      }
-      
-      for(byte rows=0; rows<mainRows; rows++) { // Iterate for mainRows variable
-        counter = 0;
-        image.read(buffers, sizeof(buffers)); // Read defined number of bytes from SD card into a buffer
-  
-        for(byte irow=0; irow<internalRows; irow++) { // Iterate for internalRows variable
-          for(byte column=0; column<32; column++) {
-            // drawPixel in 8bit colour to output to display buffer
-            matrix.drawPixel(irow+(rows*internalRows), column, matrix.Color888(buffers[counter], buffers[counter+1], buffers[counter+2]));
-            counter+=3; // Increment counter to next set of bytes for next pixel
-          }
+    unsigned long t1 = millis();
+    image = fs.open(fname, FILE_READ); // Open image file for reading
+    unsigned long t2 = millis();
+    unsigned long time = (t2-t1);
+    Serial.println(time);
+
+    if (DECIDER == 1) { // If GIF is being shown, use FPS to control speed of images
+    // Hold until time passed since last loop is larger than the minimum time per 1 frame, defined from FPS  
+    unsigned long t;
+    while(((t = millis()) - prevTime) < (1000 / FPS));
+    prevTime = t;
+    }
+    
+    for(byte rows=0; rows<mainRows; rows++) { // Iterate for mainRows variable
+      counter = 0;
+      image.read(buffers, sizeof(buffers)); // Read defined number of bytes from SD card into a buffer
+
+      for(byte irow=0; irow<internalRows; irow++) { // Iterate for internalRows variable
+        for(byte column=0; column<32; column++) {
+          // drawPixel in 8bit colour to output to display buffer
+          matrix.drawPixel(irow+(rows*internalRows), column, matrix.Color888(buffers[counter], buffers[counter+1], buffers[counter+2]));
+          counter+=3; // Increment counter to next set of bytes for next pixel
         }
-      }
-  
-      matrix.swapBuffers(false); // Output the buffer to the display LEDs 
-      image.close();
-
-      if (DECIDER == 2) { // If slide show images are being shown, use SLIDE_TIME to control speed of images
-        delay(SLIDE_TIME*1000);
       }
     }
 
-    float time2 = micros();
-    float fps = (IMAGE_COUNT/(time2-time1))*1000000.0;
-    Serial.println(fps);
-  }
+    matrix.swapBuffers(false); // Output the buffer to the display LEDs 
+    image.close();
 
-  readBluetooth(); // If Serail1 buffer has data, call function to read BT data
+    if (DECIDER == 2) { // If slide show images are being shown, use SLIDE_TIME to control speed of images
+      delay(SLIDE_TIME*1000);
+    }
+  }
 }
 
 void readBluetooth() {
@@ -128,6 +239,7 @@ void readBluetooth() {
   int bytesize = 128; // Define how many bytes will be incoming per chunk
   int chunksize = 3072/bytesize; // Define how many chunks there will be per image
   byte btbuffer[bytesize]; // Initialise a local buffer the size of each chunk
+  byte counter = 0;
 
   // Read image count and decider byte from BT and write to EEPROM
   IMAGE_COUNT = SerialBT.read();
@@ -152,46 +264,92 @@ void readBluetooth() {
   EEPROM.commit(); // Copy writes physically to EEPROM
   SerialBT.write(1); // Send byte to App to confirm data has been processed
 
-  for (int x=1; x<=IMAGE_COUNT; x++) { // Remove any existing files that are going to be overwritten
-    if (fs.exists(String(x))) {
-      fs.remove(String(x));
-    }
-  }
+  // for (int x=1; x<=IMAGE_COUNT; x++) { // Remove any existing files that are going to be overwritten
+  //   if (fs.exists(String(x))) {
+  //     fs.remove(String(x));
+  //   }
+  // }
 
-  for(int count=1; count<=IMAGE_COUNT; count++) { // Iterate for all incoming images
-    String filename = "/" + String(count); // Form image file name
-    File saveBluetooth = fs.open(filename, FILE_WRITE); // Open image file for writing
-    
-    for(byte chunks=0; chunks<chunksize; chunks++) { // Iterate for all bytes per chunk
-      for(byte single_byte=0; single_byte<bytesize; single_byte++) { 
-        
-        while (SerialBT.available() < 1) { // Hold while there is no data in the Serial1 buffer
-          ;
+  byte square = sqrt(IMAGE_COUNT) + 1;
+
+  for (byte i=0; i<square; i++) {
+    fs.mkdir("/" + String(i));
+
+    if (i == square-1) {
+      square = IMAGE_COUNT - ((square-1)*(square-1));
+    }
+
+    for (byte j=0; j<square; j++) {
+      String filename = "/" + String(i) + "/" + String(j); // Form image file name
+      File saveBluetooth = fs.open(filename, FILE_WRITE); // Open image file for writing
+      
+      for(byte chunks=0; chunks<chunksize; chunks++) { // Iterate for all bytes per chunk
+        for(byte single_byte=0; single_byte<bytesize; single_byte++) { 
+          
+          while (SerialBT.available() < 1) { // Hold while there is no data in the Serial1 buffer
+            ;
+          }
+
+          btbuffer[single_byte] = SerialBT.read(); // Store byte from bluetooth into the local buffer
         }
+        saveBluetooth.write(btbuffer, bytesize); // Write the local buffer to the file
 
-        btbuffer[single_byte] = SerialBT.read(); // Store byte from bluetooth into the local buffer
+        if(chunks+1 % (512/bytesize) == 0) { // When 512 bytes are written to the file, copy the data physically to the SD card using flush()
+          saveBluetooth.flush();
+        }
+        SerialBT.write(1); // Send byte to App to confirm a chunk has been processed
       }
-      saveBluetooth.write(btbuffer, bytesize); // Write the local buffer to the file
+      saveBluetooth.close();
+      Serial.println("Image done");
 
-     if(chunks+1 % (512/bytesize) == 0) { // When 512 bytes are written to the file, copy the data physically to the SD card using flush()
-       saveBluetooth.flush();
-     }
-      SerialBT.write(1); // Send byte to App to confirm a chunk has been processed
+      // Output a progress percentage counter to matrix based on how many images have been processed
+      matrix.fillScreen(matrix.Color333(0, 0, 0));
+      matrix.setCursor(0, 0);
+      matrix.setTextSize(1);
+      matrix.setTextWrap(true);
+      matrix.setTextColor(matrix.Color333(7,7,7));
+      matrix.println("Recieving Data.");
+      counter++;
+      int percent = ((counter)*100)/IMAGE_COUNT;
+      matrix.println((String) percent + "%");
+      matrix.swapBuffers(false);
     }
-    saveBluetooth.close();
-    Serial.println("Image done");
-
-    // Output a progress percentage counter to matrix based on how many images have been processed
-    matrix.fillScreen(matrix.Color333(0, 0, 0));
-    matrix.setCursor(0, 0);
-    matrix.setTextSize(1);
-    matrix.setTextWrap(true);
-    matrix.setTextColor(matrix.Color333(7,7,7));
-    matrix.println("Recieving Data.");
-    int percent = (count*100)/IMAGE_COUNT;
-    matrix.println((String) percent + "%");
-    matrix.swapBuffers(false);
   }
+
+  // for(int count=1; count<=IMAGE_COUNT; count++) { // Iterate for all incoming images
+  //   String filename = "/" + String(count); // Form image file name
+  //   File saveBluetooth = fs.open(filename, FILE_WRITE); // Open image file for writing
+    
+  //   for(byte chunks=0; chunks<chunksize; chunks++) { // Iterate for all bytes per chunk
+  //     for(byte single_byte=0; single_byte<bytesize; single_byte++) { 
+        
+  //       while (SerialBT.available() < 1) { // Hold while there is no data in the Serial1 buffer
+  //         ;
+  //       }
+
+  //       btbuffer[single_byte] = SerialBT.read(); // Store byte from bluetooth into the local buffer
+  //     }
+  //     saveBluetooth.write(btbuffer, bytesize); // Write the local buffer to the file
+
+  //     if(chunks+1 % (512/bytesize) == 0) { // When 512 bytes are written to the file, copy the data physically to the SD card using flush()
+  //       saveBluetooth.flush();
+  //     }
+  //     SerialBT.write(1); // Send byte to App to confirm a chunk has been processed
+  //   }
+  //   saveBluetooth.close();
+  //   Serial.println("Image done");
+
+  //   // Output a progress percentage counter to matrix based on how many images have been processed
+  //   matrix.fillScreen(matrix.Color333(0, 0, 0));
+  //   matrix.setCursor(0, 0);
+  //   matrix.setTextSize(1);
+  //   matrix.setTextWrap(true);
+  //   matrix.setTextColor(matrix.Color333(7,7,7));
+  //   matrix.println("Recieving Data.");
+  //   int percent = (count*100)/IMAGE_COUNT;
+  //   matrix.println((String) percent + "%");
+  //   matrix.swapBuffers(false);
+  // }
   serialFlush(); // Call function to clear the Serial1 buffer
 }
 
