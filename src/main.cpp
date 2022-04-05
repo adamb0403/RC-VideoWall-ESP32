@@ -3,8 +3,8 @@
 #include <RGBmatrixPanel.h> // Include required AdaFruit Library
 
 #include "FS.h" // File system library
-#include "SPI.h" // Sd libraries
-#include "SD.h"
+#include "SPIFFS.h" // SPI flash storage library
+#include "SPI.h" // SPI l;ibrary used for display and SPIFFS
 #include <EEPROM.h> // EEPROM library
 #include "BluetoothSerial.h" // ESP32 Bluetooth classic library
 
@@ -31,6 +31,8 @@ byte SLIDE_TIME;
 byte FPS;
 byte DECIDER;
 
+#define FORMAT_SPIFFS_IF_FAILED false // Used to format SPIFFS on first test
+
 void setup() {
   Serial.begin(115200); // Open serial communications and wait for port to open
   while (!Serial) { // wait for serial port to connect
@@ -43,13 +45,13 @@ void setup() {
   FPS = EEPROM.read(2);
   DECIDER = EEPROM.read(3);
 
-  Serial.print("Initializing SD card...");
+  Serial.print("Initializing SPIFFS...");
+
+  if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
+      Serial.println("SPIFFS Mount Failed");
+      while (1);
+   }
   
-  const int chipSelect = 5; // Define cs pin for sd card
-  if (!SD.begin(chipSelect)) {
-    Serial.println("initialization failed!"); // Check to see if SD is recognised
-    while (1);
-  }
   Serial.println("initialization done.");
 
   SerialBT.begin("WIRELESSDISPLAY"); // Start the bluetooth device with specified name
@@ -58,7 +60,7 @@ void setup() {
 }
 
 void loop() {
-  fs::FS &fs = SD; // Set SD card as a filesystem object via FS fucntion within the fs class/library
+  fs::FS &fs = SPIFFS; // Set SD card as a filesystem object via FS fucntion within the fs class/library
   File image;
   String fname;
   byte buffers[192]; // Initialise local image buffer
@@ -114,7 +116,7 @@ void loop() {
 }
 
 void readBluetooth() {
-  fs::FS &fs = SD; // Set SD card as a filesystem object via FS fucntion within the fs class/library
+  fs::FS &fs = SPIFFS; // Set SD card as a filesystem object via FS fucntion within the fs class/library
 
   // Output "Receiving data" message to display
   matrix.fillScreen(matrix.Color333(0, 0, 0));
@@ -152,11 +154,11 @@ void readBluetooth() {
   EEPROM.commit(); // Copy writes physically to EEPROM
   SerialBT.write(1); // Send byte to App to confirm data has been processed
 
-  for (int x=1; x<=IMAGE_COUNT; x++) { // Remove any existing files that are going to be overwritten
-    if (fs.exists(String(x))) {
-      fs.remove(String(x));
-    }
-  }
+  // for (int x=1; x<=IMAGE_COUNT; x++) { // Remove any existing files that are going to be overwritten
+  //   if (fs.exists("/" + String(x))) {
+  //     fs.remove("/" + String(x));
+  //   }
+  // }
 
   for(int count=1; count<=IMAGE_COUNT; count++) { // Iterate for all incoming images
     String filename = "/" + String(count); // Form image file name
