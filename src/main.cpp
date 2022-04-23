@@ -4,7 +4,7 @@
 
 #include "FS.h" // File system library
 #include "SPIFFS.h" // SPI flash storage library
-#include "SPI.h" // SPI l;ibrary used for display and SPIFFS
+#include "SPI.h" // SPI library used for display and SPIFFS
 #include <EEPROM.h> // EEPROM library
 #include "BluetoothSerial.h" // ESP32 Bluetooth classic library
 
@@ -69,8 +69,8 @@ void loop() {
   byte counter;
 
   while(SerialBT.available() < 1) { // Repeat loop while there is nothing in bluetooth buffer
-    float time1 = micros();
-    for (byte x=1; x<=IMAGE_COUNT; x++) { // Iterate for all images on sd card
+    double time1 = micros();
+    for (byte x=1; x<=IMAGE_COUNT; x++) { // Iterate for all images on internal flash
 
       if (SerialBT.available() > 0) { // Check for data received in bluetooth buffer
         break;
@@ -107,8 +107,8 @@ void loop() {
       }
     }
 
-    float time2 = micros();
-    float fps = (IMAGE_COUNT/(time2-time1))*1000000.0;
+    double time2 = micros();
+    double fps = (IMAGE_COUNT/(time2-time1))*1000000.0;
     Serial.println(fps);
   }
 
@@ -116,9 +116,10 @@ void loop() {
 }
 
 void readBluetooth() {
-  fs::FS &fs = SPIFFS; // Set SD card as a filesystem object via FS fucntion within the fs class/library
+  fs::FS &fs = SPIFFS; // Set internal flash as a filesystem object via FS fucntion within the fs class/library
 
-  // Output "Receiving data" message to display
+  // Output "Receiving data" message to display#
+  unsigned long start = millis();
   matrix.fillScreen(matrix.Color333(0, 0, 0));
   matrix.setCursor(0, 0);
   matrix.setTextSize(1);
@@ -181,7 +182,7 @@ void readBluetooth() {
       SerialBT.write(1); // Send byte to App to confirm a chunk has been processed
     }
     saveBluetooth.close();
-    Serial.println("Image done");
+    // Serial.println("Image done");
 
     // Output a progress percentage counter to matrix based on how many images have been processed
     matrix.fillScreen(matrix.Color333(0, 0, 0));
@@ -195,6 +196,10 @@ void readBluetooth() {
     matrix.swapBuffers(false);
   }
   serialFlush(); // Call function to clear the Serial1 buffer
+
+  unsigned long end = millis();
+  unsigned long time = end-start;
+  // Serial.println(time);
 }
 
 void serialFlush(){
