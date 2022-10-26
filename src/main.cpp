@@ -1,7 +1,8 @@
 #include <Arduino.h> // Include arduino framework
 #include <Wire.h>
 #include <RGBmatrixPanel.h> // Include required AdaFruit Library
-#include "SPIFFS.h" // SPI flash storage library
+// #include "SPIFFS.h" // SPI flash storage library
+#include <SD.h>
 #include "SPI.h" // SPI library used for display and SPIFFS
 #include <EEPROM.h> // EEPROM library
 #include "BluetoothSerial.h" // ESP32 Bluetooth classic library
@@ -43,12 +44,18 @@ void setup() {
   FPS = EEPROM.read(2);
   DECIDER = EEPROM.read(3);
 
-  Serial.print("Initializing SPIFFS...");
+  const int chipSelect = 5; // Define cs pin for sd card
+  if (!SD.begin(chipSelect)) {
+    Serial.println("initialization failed!"); // Check to see if SD is recognised
+    while (1);
+  }
 
-  if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
-      Serial.println("SPIFFS Mount Failed");
-      while (1);
-   }
+  // Serial.print("Initializing SPIFFS...");
+
+  // if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
+  //     Serial.println("SPIFFS Mount Failed");
+  //     while (1);
+  //  }
   
   Serial.println("initialization done.");
 
@@ -67,17 +74,14 @@ void loop() {
 
   while(SerialBT.available() < 1) { // Repeat loop while there is nothing in bluetooth buffer
     double time1 = micros();
+
+    fname = "/5"; // Form image file name
+    image = SD.open(fname, FILE_READ); // Open image file for reading
+
     for (byte x=1; x<=IMAGE_COUNT; x++) { // Iterate for all images on internal flash
       if (SerialBT.available() > 0) { // Check for data received in bluetooth buffer
         break;
       }
-
-      fname = "/" + String(x); // Form image file name
-      unsigned long start = millis();
-      image = SPIFFS.open(fname, FILE_READ); // Open image file for reading
-      unsigned long end = millis();
-      unsigned long time = end-start;
-      // Serial.println((String)x + ": " + time);
 
       if (DECIDER == 1) { // If GIF is being shown, use FPS to control speed of images
         // Hold until time passed since last loop is larger than the minimum time per 1 frame, defined from FPS  
@@ -100,20 +104,22 @@ void loop() {
       }
   
       matrix.swapBuffers(false); // Output the buffer to the display LEDs 
-      image.close();
 
       if (DECIDER == 2) { // If slide show images are being shown, use SLIDE_TIME to control speed of images
         delay(SLIDE_TIME*1000);
       }
     }
+    image.close();
+
     double time2 = micros();
     double fps = (IMAGE_COUNT/(time2-time1))*1000000.0;
-    // Serial.println(fps);
+    Serial.println(fps);
   }
   readBluetooth(); // If Serail1 buffer has data, call function to read BT data
 }
 
 void readBluetooth() {
+  unsigned long start = millis();
   // Output "Receiving data" message to display
   matrix.fillScreen(matrix.Color333(0, 0, 0));
   matrix.setCursor(0, 0);
@@ -123,7 +129,7 @@ void readBluetooth() {
   matrix.println("Receiving Data...");
   matrix.swapBuffers(false);
   
-  int bytesize = 256; // Define how many bytes will be incoming per chunk
+  int bytesize = 1024; // Define how many bytes will be incoming per chunk
   int chunksize = 3072/bytesize; // Define how many chunks there will be per image
   byte btbuffer[bytesize]; // Initialise a local buffer the size of each chunk
 
@@ -150,39 +156,22 @@ void readBluetooth() {
   EEPROM.commit(); // Copy writes physically to EEPROM
   SerialBT.write(1); // Send byte to App to confirm data has been processed
 
-  // for (int x=1; x<=IMAGE_COUNT; x++) { // Remove any existing files that are going to be overwritten
-  //   if (fs.exists("/" + String(x))) {
-  //     fs.remove("/" + String(x));
-  //   }
-  // }
+  String filename = "/5" ; // Form image file name
+  File saveBluetooth = SD.open(filename, FILE_WRITE); // Open image file for writing
 
   for(int count=1; count<=IMAGE_COUNT; count++) { // Iterate for all incoming images
-    String filename = "/" + String(count); // Form image file name
-    File saveBluetooth = SPIFFS.open(filename, FILE_WRITE); // Open image file for writing
-    
     for(int chunks=0; chunks<chunksize; chunks++) { // Iterate for all bytes per chunk
       for(int single_byte=0; single_byte<bytesize; single_byte++) { 
         
         while (SerialBT.available() < 1) { // Hold while there is no data in the Serial1 buffer
           ;
         }
-
-        // Serial.println((String) "Confirm start " + chunks + ": " + single_byte);
-
         btbuffer[single_byte] = SerialBT.read(); // Store byte from bluetooth into the local buffer
-        // Serial.println((String) btbuffer[single_byte]);
       }
-      saveBluetooth.write(btbuffer, 256); // Write the local buffer to the file
-      // Serial.println((String) "Confirm write " + chunks);
-
-      if(chunks+1 % (512/bytesize) == 0) { // When 512 bytes are written to the file, copy the data physically to the SD card using flush()
-        saveBluetooth.flush();
-      }
-
+      
+      saveBluetooth.write(btbuffer, bytesize); // Write the local buffer to the file
       SerialBT.write(1); // Send byte to App to confirm a chunk has been processed
-      // Serial.println((String) "Confirm callback " + chunks);
     }
-    saveBluetooth.close();
 
     // Output a progress percentage counter to matrix based on how many images have been processed
     matrix.fillScreen(matrix.Color333(0, 0, 0));
@@ -195,7 +184,10 @@ void readBluetooth() {
     matrix.println((String) percent + "%");
     matrix.swapBuffers(false);
   }
+  saveBluetooth.close();
   serialFlush(); // Call function to clear the Serial1 buffer
+  unsigned long time = millis()-start;
+  Serial.println(((IMAGE_COUNT*3000)/time));
 }
 
 void serialFlush(){
